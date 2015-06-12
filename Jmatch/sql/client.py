@@ -2,12 +2,13 @@
 
 import sqlite3
 import traceback
+from Jmatch.config import config
 
 
 def connect(row=False):
 	"""Get connection and cursor at the same time"""
 	try:
-		conn = sqlite3.connect("Jmatch.db")
+		conn = sqlite3.connect(config["db"])
 		if row:
 			conn.row_factory = sqlite3.Row
 		cursor = conn.cursor()
@@ -19,7 +20,7 @@ def connect(row=False):
 
 def rebuild():
 	conn, cur = connect()
-	rebuildSql = open('./Jmatch/sql/Jmatch.sql', 'r').read()
+	rebuildSql = open(config["sql"], 'r').read()
 	cur.executescript(rebuildSql)
 	conn.commit()
 	conn.close()
@@ -39,6 +40,22 @@ def selectAll(table):
 		conn, cur = connect(row=True)
 		cur.execute("select * from "+table)
 		return cur.fetchall()
+	finally:
+		conn.close()
+
+
+def verifyUser(username='', password='', accesstoken=''):
+	try:
+		conn, cur = connect()
+		if accesstoken != '':
+			cur.execute("select id from users where accesstoken=?", (accesstoken,))
+			return cur.fetchone()[0]
+		else:	
+			cur.execute("select accesstoken from users where username=? and password=?", (username, password))
+			return cur.fetchone()[0]
+	except:
+		traceback.print_exc()
+		return None
 	finally:
 		conn.close()
 

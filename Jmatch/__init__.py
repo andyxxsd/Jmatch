@@ -1,13 +1,34 @@
-from flask import Flask, Blueprint, Response, request
+from flask import Flask, Blueprint, Response, request, redirect, abort
 from Jmatch.sql import client
 import json
 from Jmatch.utils.utils import utils
+import traceback
 
 app = Flask(__name__)
 
 test_api = Blueprint('test', __name__)
 sql_api = Blueprint('sql', __name__)
 view = Blueprint('view', __name__)
+
+
+@sql_api.before_request
+def check_auth():
+	accesstoken = request.headers.get('accesstoken')
+	if not accesstoken:
+		unauth_resp = Response(
+			'Login required',
+			401,
+			{'WWW-Authenticate': 'Basic realm="Login Required"'}
+			)
+		auth = request.authorization
+		if not auth:
+			return unauth_resp
+		else:
+			accesstoken = client.verifyUser(auth.username, auth.password)
+			if accesstoken == None:
+				return unauth_resp
+	if client.verifyUser(accesstoken=accesstoken) == None:
+		abort(401)
 
 
 @test_api.route("/hello",  methods=['GET'])
@@ -27,7 +48,7 @@ def helloSql():
 @sql_api.route("/rebuild", methods=['GET'])
 def rebuild():
 	client.rebuild()
-	return Response("Hello World", 200, content_type="text/html")
+	return "Successfully rebuild"
 
 
 @sql_api.route("/<table>", methods=['POST', 'GET'])
@@ -47,37 +68,6 @@ def post_object(table):
 				cur[key] = result[key]
 			res.append(cur)
 		return res
-
-
-# @sql_api.before_request
-# def check_auth(force_check=False):
-#     token = request.cookies.get('token')
-#     if not token or force_check:
-#         unauth_resp = Response(
-#             'Login required',
-#             401,
-#             {'WWW-Authenticate': 'Basic realm="Please login with OfferCal Account"'}
-#             )
-#         unauth_resp.set_cookie('token', '', expires=0)
-#         auth = request.authorization
-#         if not auth:
-#             return unauth_resp
-#         else:
-#             r = requests.post(app.config['API_BASE_URL'] + '/users?action=login',
-#                               data=json.dumps({
-#                                   'email': auth.username,
-#                                   'password': auth.password
-#                               }))
-#             try:
-#                 admin = mongo['roles'].find({'name': 'admin'})[0]
-#                 if r.json()['data']['users'][0]['id'] not in admin['userIds']:
-#                     return unauth_resp
-#                 token = r.json()['data']['users'][0]['accessToken']
-#                 resp = redirect('/')
-#                 resp.set_cookie('token', token)
-#                 return resp
-#             except Exception:
-#                 return unauth_resp
 
 
 BLUEPRINTS = [
