@@ -1,7 +1,7 @@
 from flask import Flask, Blueprint, Response, request
-from sql import client
+from Jmatch.sql import client
 import json
-from utils import utils
+from Jmatch.utils.utils import utils
 
 app = Flask(__name__)
 
@@ -31,7 +31,7 @@ def rebuild():
 
 
 @sql_api.route("/<table>", methods=['POST', 'GET'])
-# @utils.sql_output
+@utils.sql_output
 def post_object(table):
 	if request.method == 'POST':
 		print(request.data)
@@ -46,7 +46,38 @@ def post_object(table):
 			for key in result.keys():
 				cur[key] = result[key]
 			res.append(cur)
-		return Response(json.dumps(res), 200, content_type="application/json")
+		return res
+
+
+# @sql_api.before_request
+# def check_auth(force_check=False):
+#     token = request.cookies.get('token')
+#     if not token or force_check:
+#         unauth_resp = Response(
+#             'Login required',
+#             401,
+#             {'WWW-Authenticate': 'Basic realm="Please login with OfferCal Account"'}
+#             )
+#         unauth_resp.set_cookie('token', '', expires=0)
+#         auth = request.authorization
+#         if not auth:
+#             return unauth_resp
+#         else:
+#             r = requests.post(app.config['API_BASE_URL'] + '/users?action=login',
+#                               data=json.dumps({
+#                                   'email': auth.username,
+#                                   'password': auth.password
+#                               }))
+#             try:
+#                 admin = mongo['roles'].find({'name': 'admin'})[0]
+#                 if r.json()['data']['users'][0]['id'] not in admin['userIds']:
+#                     return unauth_resp
+#                 token = r.json()['data']['users'][0]['accessToken']
+#                 resp = redirect('/')
+#                 resp.set_cookie('token', token)
+#                 return resp
+#             except Exception:
+#                 return unauth_resp
 
 
 BLUEPRINTS = [
@@ -57,7 +88,3 @@ BLUEPRINTS = [
 
 for blueprint, url_prefix in BLUEPRINTS:
 	app.register_blueprint(blueprint, url_prefix=url_prefix)
-
-
-if __name__ == '__main__':
-	app.run(host="0.0.0.0", debug=True)
