@@ -27,12 +27,15 @@ def rebuild():
 
 
 def insert(table, columns, values):
-	conn, cur = connect()
-	sql = "insert into %s (%s) values (%s)" % (table, ", ".join(columns), ", ".join(["'"+v.__str__()+"'" for v in values]))
-	print(sql)
-	cur.execute(sql)
-	conn.commit()
-	conn.close()
+	try:
+		conn, cur = connect()
+		sql = "insert into %s (%s) values (%s)" % (table, ", ".join(columns), ", ".join(["'"+v.__str__()+"'" for v in values]))
+		print(sql)
+		cur.execute(sql)
+		conn.commit()
+		return True
+	finally:
+		conn.close()
 
 
 def selectAll(table):

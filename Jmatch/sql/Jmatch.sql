@@ -5,7 +5,7 @@
 DROP TABLE IF EXISTS users;
 CREATE TABLE users(
 	id INTEGER PRIMARY KEY,
-	username TEXT,
+	username TEXT UNIQUE,
 	password TEXT,
 	accesstoken TEXT,
 	nickname TEXT
@@ -14,7 +14,7 @@ CREATE TABLE users(
 DROP TABLE IF EXISTS games;
 CREATE TABLE games(
 	id INTEGER PRIMARY KEY,
-	name TEXT,
+	name TEXT UNIQUE,
 	playersNumber INTEGER
 );
 

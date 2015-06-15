@@ -8,8 +8,11 @@ class utils(object):
 	def sql_output(f):
 		def decorator(**keywords):
 			result = f(**keywords)
-			if result == 'OK':
-				return Response("OK", 200)
+			if isinstance(result, str) :
+				status_code = 200
+				if result != 'OK':
+					status_code = 400
+				return Response(result, status_code)
 			else:
 				items = [item for item in result]
 				data = json.dumps(items, indent="	")
