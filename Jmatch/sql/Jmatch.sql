@@ -5,32 +5,31 @@
 DROP TABLE IF EXISTS users;
 CREATE TABLE users(
 	id INTEGER PRIMARY KEY,
-	username TEXT UNIQUE,
-	password TEXT,
-	accesstoken TEXT,
+	username TEXT UNIQUE NOT NULL,
+	password TEXT NOT NULL,
+	accesstoken TEXT NOT NULL,
 	nickname TEXT
 );
 
 DROP TABLE IF EXISTS games;
 CREATE TABLE games(
 	id INTEGER PRIMARY KEY,
-	name TEXT UNIQUE,
+	name TEXT UNIQUE NOT NULL,
 	playersNumber INTEGER
 );
 
 DROP TABLE IF EXISTS matches;
 CREATE TABLE matches(
 	id INTEGER PRIMARY KEY,
-	winner INTEGER,
-	loser INTEGER,
-	FOREIGN KEY (winner) REFERENCES users(id),
-	FOREIGN KEY (loser) REFERENCES users(id)
+	gid INTEGER NOT NULL,
+	createdTime INTEGER NOT NULL,
+	FOREIGN KEY (gid) REFERENCES games(id)
 );
 
 DROP TABLE IF EXISTS winners;
 CREATE TABLE winners(
-	mid INTEGER,
-	uid INTEGER,
+	mid INTEGER NOT NULL,
+	uid INTEGER NOT NULL,
 	PRIMARY KEY(mid, uid),
 	FOREIGN KEY (mid) REFERENCES matches(id),
 	FOREIGN KEY (uid) REFERENCES users(id)
@@ -38,8 +37,8 @@ CREATE TABLE winners(
 
 DROP TABLE IF EXISTS losers;
 CREATE TABLE losers(
-	mid INTEGER,
-	uid INTEGER,
+	mid INTEGER NOT NULL,
+	uid INTEGER NOT NULL,
 	PRIMARY KEY(mid, uid),
 	FOREIGN KEY (mid) REFERENCES matches(id),
 	FOREIGN KEY (uid) REFERENCES users(id)
@@ -48,8 +47,8 @@ CREATE TABLE losers(
 DROP TABLE IF EXISTS roles;
 CREATE TABLE roles(
 	id INTEGER PRIMARY KEY,
-	uid INTEGER,
-	access TEXT,
+	uid INTEGER NOT NULL,
+	access TEXT NOT NULL,
 	FOREIGN KEY (uid) REFERENCES users(id)
 );
 

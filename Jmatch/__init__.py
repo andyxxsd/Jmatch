@@ -1,9 +1,11 @@
 from flask import Flask, Blueprint, Response, request, abort
 from Jmatch.sql import client
 import json
+import time
 import hashlib
-from Jmatch.utils.utils import utils
+from Jmatch.utils.utils import *
 import traceback
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -21,7 +23,6 @@ def hello():
 def helloSql():
 	conn, cur = client.connect()
 	cur.execute("select 1+1 as sum")
-	print(cur.fetchone())
 	cur.close()
 	return Response("Pig", 200, content_type="text/html")
 
@@ -51,7 +52,8 @@ def check_auth():
 			accesstoken = client.verifyUser(auth.username, auth.password)
 			if accesstoken == None:
 				return unauth_resp
-	if client.verifyUser(accesstoken=accesstoken) == None:
+	request.uid = client.verifyUser(accesstoken=accesstoken)
+	if request.uid == None:
 		abort(401)
 
 
@@ -63,27 +65,50 @@ def rebuild():
 
 @sql_api.route("/<table>", methods=['POST', 'GET'])
 @utils.sql_output
-def post_object(table):
+def post_get_object(table):
 	try:
 		if request.method == 'POST':
-			print(request.data)
 			obj = json.loads(request.data.decode('utf-8'))
 			if table == 'users' and 'accesstoken' not in obj:
 				obj['accesstoken'] = hashlib.sha1(obj['username'].encode('utf-8')).hexdigest()
-			client.insert(table, list(obj.keys()), list(obj.values()))
-			return "OK"
+			return rows_to_dicts([client.insert(table, list(obj.keys()), list(obj.values()))])
 		if request.method == 'GET':
-			results = client.selectAll(table)
-			res = []
-			for result in results:
-				cur = {}
-				for key in result.keys():
-					cur[key] = result[key]
-				res.append(cur)
-			return res
+			return rows_to_dicts(client.selectAll(table))
 	except Exception as e:
 		print(e)
 		return e.__str__()
+
+
+# obj:
+# 	gid = game id
+# 	winners = [uid, uid, uid...] or uid
+# 	losers = [uid, uid, uid...] or uid
+@sql_api.route("/report", methods=['POST'])
+@utils.sql_output
+def report():
+	obj = json.loads(request.data.decode('utf-8'))
+	if not isinstance(obj['winners'], list):
+		obj['winners'] = [obj['winners']]
+	if not isinstance(obj['losers'], list):
+		obj['losers'] = [obj['losers']]
+	match = client.insert('matches', ["gid", "createdTime"], [obj["gid"], int(time.time())])
+	for v in obj['winners']:
+		_ = client.insert('winners', ["mid", "uid"], [match["id"], v])
+	for v in obj['losers']:
+		_ = client.insert('losers', ["mid", "uid"], [match["id"], v])
+	return rows_to_dicts([match])
+
+
+@sql_api.route("/history", methods=['GET'])
+@utils.sql_output
+def history():
+	return rows_to_dicts(client.history(request.uid))
+
+
+@sql_api.route("/history/<uid>", methods=['GET'])
+@utils.sql_output
+def history_uid(uid):
+	return rows_to_dicts(client.history(uid))
 
 
 BLUEPRINTS = [

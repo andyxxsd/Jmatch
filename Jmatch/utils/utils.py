@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import time
 from flask import Response, request, abort
 
 class utils(object):
@@ -15,15 +16,12 @@ class utils(object):
 				return Response(result, status_code)
 			else:
 				items = [item for item in result]
+				# Convert timestamp to datetime
+				for v in items:
+					for k in v.keys():
+						if k == "createdTime":
+							v[k] = time.ctime(v[k])
 				data = json.dumps(items, indent="	")
-				# if keywords.get('obj_id', None) is not None or keywords.get('data', None) is not None:
-				#	 if len(items) > 0:
-				#		 data = json_util.dumps(items[0])
-				#	 else:
-				#		 abort(404)
-				# else:
-				#	 data = json_util.dumps(items)
-				print(data)
 				resp = Response(
 					response=data,
 					status=200,
@@ -40,3 +38,12 @@ class utils(object):
 	#		 return f(**keywords)
 	#	 decorator.__name__ = f.__name__
 	#	 return decorator
+
+def rows_to_dicts(rows):
+	res = []
+	for row in rows:
+		cur = {}
+		for key in row.keys():
+			cur[key] = row[key]
+		res.append(cur)
+	return res

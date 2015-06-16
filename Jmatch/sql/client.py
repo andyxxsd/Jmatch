@@ -3,6 +3,7 @@
 import sqlite3
 import traceback
 from Jmatch.config import config
+import os
 
 
 def connect(row=False):
@@ -20,21 +21,22 @@ def connect(row=False):
 
 def rebuild():
 	conn, cur = connect()
-	rebuildSql = open(config["sql"], 'r').read()
-	cur.executescript(rebuildSql)
+	rebuildSql = open(config["sql"], 'r')
+	cur.executescript(rebuildSql.read())
 	conn.commit()
 	conn.close()
+	rebuildSql.close()
 
 
 def insert(table, columns, values):
 	try:
-		conn, cur = connect()
+		conn, cur = connect(row=True)
 		sql = "insert into %s (%s) values (%s)" % (table, ", ".join(columns), ", ".join(["'"+v.__str__()+"'" for v in values]))
-		print(sql)
 		cur.execute(sql)
-		conn.commit()
-		return True
+		cur.execute("select * from %s where rowid=last_insert_rowid()" % table)
+		return cur.fetchone()
 	finally:
+		conn.commit()
 		conn.close()
 
 
@@ -62,6 +64,35 @@ def verifyUser(username='', password='', accesstoken=''):
 	finally:
 		conn.close()
 
+
+def history(uid):
+	try:
+		conn, cur = connect(row=True)
+		cur.execute("""
+			select * from (
+				select matches.id, games.name as game, matches.createdTime, 'win' as result
+				from matches, games
+				where exists (
+					select * 
+					from winners 
+					where winners.mid = matches.id and
+					winners.uid = ?
+				)
+				union
+				select matches.id, games.name, matches.createdTime, 'lose' as result
+				from matches, games
+				where exists (
+					select * 
+					from losers 
+					where losers.mid = matches.id and
+					losers.uid = ?
+				)
+			) as A
+			order by A.createdTime desc
+		""", (uid, uid,))
+		return cur.fetchall()
+	finally:
+		conn.close()
 
 
 def deleteMatches():
