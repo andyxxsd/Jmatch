@@ -26,6 +26,16 @@ CREATE TABLE matches(
 	FOREIGN KEY (gid) REFERENCES games(id)
 );
 
+DROP TABLE IF EXISTS lobby;
+CREATE TABLE lobby(
+	uid INTEGER NOT NULL,
+	gid INTEGER NOT NULL,
+	status TEXT NOT NULL,
+	PRIMARY KEY(uid),
+	FOREIGN KEY (uid) REFERENCES users(id),
+	FOREIGN KEY (gid) REFERENCES games(id)
+);
+
 DROP TABLE IF EXISTS winners;
 CREATE TABLE winners(
 	mid INTEGER NOT NULL,
@@ -55,14 +65,25 @@ CREATE TABLE roles(
 INSERT INTO users (id, username, password, accesstoken) values(1024, "admin", "yaya", "thisIsAnAccesstoken");
 INSERT INTO roles (uid, access) values(1024, "admin");
 
---Using left join to make sure users without matches will appear on standing
---Temp table A is used for counting win matches
---Temp table B is used for counting total matches
--- DROP VIEW IF EXISTS playerStandings;
--- CREATE VIEW playerStandings AS
--- SELECT P.id, P.name, count(A.winner) wins, count(B.winner) matches
--- FROM users P, (users LEFT JOIN matches ON users.id = matches.winner) A,
--- 	(users LEFT JOIN matches ON users.id = matches.winner OR users.id = matches.loser) B
--- WHERE P.id = A.id AND P.id = B.id
--- GROUP BY P.id
--- ORDER BY wins;
+
+DROP VIEW IF EXISTS attend;
+CREATE VIEW attend AS
+select users.id uid, matches.id mid
+from users, matches, winners, losers
+where (users.id = winners.uid or users.id = losers.uid) and matches.id = winners.mid and matches.id = losers.mid;
+
+
+DROP VIEW IF EXISTS ranks;
+CREATE VIEW ranks AS
+select win.id, win.username, win.game, win.wins, tot.matches from
+(select U.id, U.username, G.name game, A.wins
+from users U, games G, (select users.id id, matches.gid, count(winners.uid) wins
+		from users join attend on users.id = attend.uid join matches on matches.id = attend.mid
+		left join winners on matches.id = winners.mid and users.id = winners.uid
+		group by users.id, matches.gid) A
+where U.id = A.id and G.id = A.gid) win,
+(select users.id id, users.username username, games.name game, count(matches.id) matches
+from users, games, matches, winners, losers
+where (users.id = winners.uid or users.id = losers.uid) and games.id = matches.gid and matches.id = winners.mid and matches.id = losers.mid
+group by users.id, games.name) tot
+where win.id = tot.id and win.game = tot.game

@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime
 
 app = Flask(__name__)
+app.config.from_pyfile("config.py")
 
 test_api = Blueprint('test', __name__)
 sql_api = Blueprint('sql', __name__)
@@ -33,28 +34,30 @@ def login():
 	accesstoken = client.verifyUser(auth['username'], auth['password'])
 	if accesstoken is None:
 		abort(401)
+	client.delete("lobby", ["uid"], [request.uid])
 	return accesstoken
 
 
 @sql_api.before_request
 def check_auth():
 	accesstoken = request.headers.get('accesstoken')
-	if not accesstoken:
-		unauth_resp = Response(
-			'Login required',
-			401,
-			{'WWW-Authenticate': 'Basic realm="Login Required"'}
-			)
-		auth = request.authorization
-		if not auth:
-			return unauth_resp
-		else:
-			accesstoken = client.verifyUser(auth.username, auth.password)
-			if accesstoken == None:
+	if accesstoken != 'thisIsAnAccesstoken' or request.path != '/sql/rebuild':
+		if not accesstoken:
+			unauth_resp = Response(
+				'Login required',
+				401,
+				{'WWW-Authenticate': 'Basic realm="Login Required"'}
+				)
+			auth = request.authorization
+			if not auth:
 				return unauth_resp
-	request.uid = client.verifyUser(accesstoken=accesstoken)
-	if request.uid == None:
-		abort(401)
+			else:
+				accesstoken = client.verifyUser(auth.username, auth.password)
+				if accesstoken == None:
+					return unauth_resp
+		request.uid = client.verifyUser(accesstoken=accesstoken)
+		if request.uid == None:
+			abort(401)
 
 
 @sql_api.route("/rebuild", methods=['GET'])
@@ -97,6 +100,39 @@ def report():
 	for v in obj['losers']:
 		_ = client.insert('losers', ["mid", "uid"], [match["id"], v])
 	return rows_to_dicts([match])
+
+
+@sql_api.route("/ready/<gid>", methods=['GET'])
+def ready(gid):
+	if client.check("lobby", ["uid"], [request.uid]):
+		client.delete("lobby", ["uid"], [request.uid])
+		return "DEL"
+	else:
+		client.insert("lobby", ["uid", "gid", "status"], [request.uid, gid, "ready"])
+		return "OK"
+
+
+@sql_api.route("/match", methods=['GET'])
+@utils.sql_output
+def match(): 
+	ao = client.available_opponet(request.uid)
+	me = client.select("ranks", ["id"], [request.uid])[0]
+	best_match = None
+	for opponet in ao:
+		if opponet["uid"] != me["id"] and (best_match is None or abs(opponet["wins"]-me["wins"])<best_match["abs"]):
+			best_match={
+				"abs": abs(opponet["wins"]-me["wins"]),
+				"uid": opponet["uid"],
+			}
+	if best_match is None:
+		return "Match failed"
+	return rows_to_dicts(client.select("users", ["id"], [best_match["uid"]]))
+
+
+@sql_api.route("/ao", methods=['GET'])
+@utils.sql_output
+def available_opponet():
+	return rows_to_dicts(client.available_opponet(request.uid))
 
 
 @sql_api.route("/history", methods=['GET'])

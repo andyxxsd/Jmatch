@@ -1,3 +1,4 @@
 import json
 
-config = json.load(open("config.json", "r"))
+DB = "Jmatch.db"
+SQL = "./Jmatch/sql/Jmatch.sql"
