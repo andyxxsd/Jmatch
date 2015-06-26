@@ -20,7 +20,7 @@ class utils(object):
 				for v in items:
 					for k in v.keys():
 						if k == "createdTime":
-							v[k] = time.ctime(v[k])
+							v[k] = time.strftime('%m-%d %H:%M', time.strptime(time.ctime(v[k]+43200)))
 				data = json.dumps(items, indent="	")
 				resp = Response(
 					response=data,

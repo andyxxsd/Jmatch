@@ -29,13 +29,14 @@ def helloSql():
 
 
 @app.route("/login", methods=['POST'])
+@utils.sql_output
 def login():
 	auth = json.loads(request.data.decode('utf-8'))
 	accesstoken = client.verifyUser(auth['username'], auth['password'])
 	if accesstoken is None:
 		abort(401)
-	client.delete("lobby", ["uid"], [request.uid])
-	return accesstoken
+	client.delete("lobby", ["uid"], [client.verifyUser(accesstoken=accesstoken)])
+	return rows_to_dicts(client.select("users", ["accesstoken"], [accesstoken]));
 
 
 @sql_api.before_request
